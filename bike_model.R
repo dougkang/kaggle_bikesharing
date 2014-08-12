@@ -1,13 +1,13 @@
 library(randomForest)
 library(ggplot2)
 library(gbm)
+library(car)
 
 #http://gettinggeneticsdone.blogspot.com/2011/02/split-data-frame-into-testing-and.html
 #http://blog.yhathq.com/posts/comparing-random-forests-in-python-and-r.html
 
-setwd("/Users/Ying/Documents/Kaggle/Bike/")
-trainData <- read.csv("train.csv", header=TRUE, stringsAsFactors = FALSE)
-testData <- read.csv("test.csv", header=TRUE, stringsAsFactors = FALSE)
+trainData <- read.csv("data/train.csv", header=TRUE, stringsAsFactors = FALSE)
+testData <- read.csv("data/test.csv", header=TRUE, stringsAsFactors = FALSE)
 
 head(trainData)
 head(testData)
@@ -29,8 +29,8 @@ weekday = as.factor(datetime$wday)
 month = as.factor(datetime$mon)
 year = 1900 + datetime$year
 trainData$datetime = datetime
-
-trainData = cbind(trainData, hour, weekday, month, year)
+dayType <- ifelse(trainData$workingday == 1, 0, ifelse(trainData$holiday == 1, 2, 1))
+trainData = cbind(trainData, hour, weekday, month, year, dayType)
 
 datetime2 = as.POSIXlt(testData$datetime)
 hour = as.factor(datetime2$hour)
@@ -38,9 +38,8 @@ weekday = as.factor(datetime2$wday)
 month = as.factor(datetime2$mon)
 year = 1900 + datetime2$year
 testData$datetime = datetime2
-
-testData = cbind(testData, hour, weekday, month, year)
-
+dayType <- ifelse(testData$workingday == 1, 0, ifelse(testData$holiday == 1, 2, 1))
+testData = cbind(testData, hour, weekday, month, year, dayType)
 
 fcasual <- aov(trainData$casual ~ trainData$season + trainData$holiday + trainData$workingday + trainData$weather + trainData$temp + trainData$humidity + trainData$windspeed + trainData$hour + trainData$weekday + trainData$month + trainData$year)
 summary(fcasual)
@@ -57,10 +56,10 @@ ggplot(dataplot, aes(x=workingday, y=holiday)) + geom_tile(aes(fill = count))+ s
 training <- trainData
 testing <- testData
 
-rf <- randomForest(casual ~ season + holiday + workingday + weather + hour + weekday + month + year + temp, data = training , ntree = 200, importance = TRUE, keep.forest = TRUE, mtry = 8)
+rf <- randomForest(casual ~ dayType + weather + hour + weekday + month + temp + windspeed, data = training , ntree = 200, importance = TRUE, keep.forest = TRUE, mtry = 8)
 varImpPlot(rf, type = 1)
 
-rf2 <- randomForest(registered ~ season + holiday + workingday + weather + hour + weekday + month + year + temp, data = training , ntree = 200, importance = TRUE, keep.forest = TRUE, mtry = 8)
+rf2 <- randomForest(registered ~ dayType + weather + hour + weekday + month + temp + windspeed, data = training , ntree = 200, importance = TRUE, keep.forest = TRUE, mtry = 8)
 varImpPlot(rf2, type = 1)
 
 head(testing)
@@ -75,6 +74,4 @@ final_predict <- unname(predicted_count)
 rf.sub <- list()
 rf.sub$datetime <- testData$datetime
 rf.sub$count <- predicted_count
-write.csv(rf.sub, file = "rf.csv", row.names = FALSE)
-
-
+write.csv(rf.sub, file = "rf2.csv", row.names = FALSE)
